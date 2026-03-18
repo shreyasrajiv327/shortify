@@ -3,13 +3,14 @@ package services
 import(
 	"shortify/internal/models"
 	"shortify/internal/repository"
-	"strconv"
+	"shortify/internal/utils"
+	"sync/atomic"
 	"fmt"
 )
 
 type URLService struct{
 	repo *repository.URLRepository
-	nextID int
+	nextID int64
 }
 
 func NewURLService(repo *repository.URLRepository) *URLService{
@@ -20,10 +21,10 @@ func NewURLService(repo *repository.URLRepository) *URLService{
 }
 
 func (s *URLService) CreateShortURL(longURL string) *models.URL{
-	id := s.nextID
+	id := atomic.AddInt64(&s.nextID, 1)
 	s.nextID++
 
-	shortCode := strconv.Itoa(id)
+	shortCode := utils.EncodeBase62(id)
 	url := &models.URL{
 		ShortCode: shortCode,
 		LongURL: longURL,
