@@ -13,7 +13,7 @@ func main(){
 
 	repository := repository.NewURLRepository()
 	service := services.NewURLService(repository)
-	handler := handlers.NewURLHandelr(service)
+	handler := handlers.NewURLHandler(service)
 	http.HandleFunc("/shorten", handler.CreateShortURL)
 	http.HandleFunc("/", handler.RedirectURL)
 

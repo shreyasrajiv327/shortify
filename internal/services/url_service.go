@@ -22,7 +22,7 @@ func NewURLService(repo *repository.URLRepository) *URLService{
 
 func (s *URLService) CreateShortURL(longURL string) *models.URL{
 	id := atomic.AddInt64(&s.nextID, 1)
-	s.nextID++
+
 
 	shortCode := utils.EncodeBase62(id)
 	url := &models.URL{
