@@ -30,6 +30,8 @@ func (h *URLHandler) CreateShortURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
+
 	var request CreateURLRequest
 
 	err := json.NewDecoder(r.Body).Decode(&request)
@@ -38,16 +40,24 @@ func (h *URLHandler) CreateShortURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Validation (important)
 	if request.URL == "" {
 		http.Error(w, "URL is required", http.StatusBadRequest)
 		return
 	}
 
-	url := h.service.CreateShortURL(request.URL)
+	url, err := h.service.CreateShortURL(request.URL)
+	if err != nil {
+		http.Error(w, "Failed to create short URL", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(url)
+
+	response := map[string]string{
+		"short_url": "http://localhost:8080/" + url.ShortCode,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 // GET /{shortCode}

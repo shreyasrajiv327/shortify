@@ -7,11 +7,13 @@ import (
 	"shortify/internal/handlers"
 	"shortify/internal/repository"
 	"shortify/internal/services"
+	"shortify/internal/database"
 )
 
 func main(){
 
-	repository := repository.NewURLRepository()
+	db := database.ConnectDB()
+	repository := repository.NewPostgresRepository(db)
 	service := services.NewURLService(repository)
 	handler := handlers.NewURLHandler(service)
 	http.HandleFunc("/shorten", handler.CreateShortURL)

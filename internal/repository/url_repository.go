@@ -2,6 +2,7 @@ package repository
 
 import "shortify/internal/models"
 import "sync"
+import "fmt"
 
 type URLRepository struct {
 	store map[string]*models.URL
@@ -14,16 +15,21 @@ func NewURLRepository() *URLRepository {
 	}
 }
 
-func (r *URLRepository) Save(url *models.URL) {
+func (r *URLRepository) Save(url *models.URL) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	r.store[url.ShortCode] = url
+	return nil
 }
 
-func (r *URLRepository) Get(code string) (url *models.URL, exists bool){
+func (r *URLRepository) Get(code string) (*models.URL, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
-	url , exists = r.store[code]
-	return url, exists
+
+	url, exists := r.store[code]
+	if !exists {
+		return nil, fmt.Errorf("not found")
+	}
+	return url, nil
 }
