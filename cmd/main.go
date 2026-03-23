@@ -8,13 +8,15 @@ import (
 	"shortify/internal/repository"
 	"shortify/internal/services"
 	"shortify/internal/database"
+	"shortify/internal/cache"
 )
 
 func main(){
 
 	db := database.ConnectDB()
+	cache := cache.NewRedisClient()
 	repository := repository.NewPostgresRepository(db)
-	service := services.NewURLService(repository)
+	service := services.NewURLService(repository, cache)
 	handler := handlers.NewURLHandler(service)
 	http.HandleFunc("/shorten", handler.CreateShortURL)
 	http.HandleFunc("/", handler.RedirectURL)

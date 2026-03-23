@@ -5,17 +5,20 @@ import (
 	"shortify/internal/models"
 	"shortify/internal/repository"
 	"shortify/internal/utils"
+	"shortify/internal/cache"
 	"sync/atomic"
 )
 
 type URLService struct {
 	repo   repository.URLRepositoryInterface
+	cache *cache.RedisClient
 	nextID int64
 }
 
-func NewURLService(repo repository.URLRepositoryInterface) *URLService {
+func NewURLService(repo repository.URLRepositoryInterface, cache *cache.RedisClient) *URLService {
 	return &URLService{
 		repo:   repo,
+		cache: cache,
 		nextID: 1,
 	}
 }
@@ -49,16 +52,34 @@ func (s *URLService) CreateShortURL(longURL string) (*models.URL, error) {
 		if err2 != nil{
 			return nil,err1
 		}
+
+		_ = s.cache.Set(existing.ShortCode, existing1.LongURL)
 		return existing1, nil
 	}
+    
 
+	_ = s.cache.Set(shortCode, longURL)
 	return url, nil
 }
 
 func (s *URLService) GetLongURL(code string) (*models.URL, error) {
+
+	//checking Redis
+	longURL, err1 := s.cache.Get(code)
+	if err1 == nil {
+		return &models.URL{
+			ShortCode: code,
+			LongURL: longURL,
+		}, nil
+	}
+
+
+	//Check DB if not stored in Redis
 	url, err := s.repo.Get(code)
 	if err != nil {
 		return nil, fmt.Errorf("URL not found")
 	}
+
+	_ = s.cache.Set(code, url.LongURL)
 	return url, nil
 }
