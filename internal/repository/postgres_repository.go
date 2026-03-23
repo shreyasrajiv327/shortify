@@ -44,3 +44,25 @@ func (r *PostgresRepository) Get(code string) (*models.URL, error) {
 
 	return &url, nil
 }
+
+func (r *PostgresRepository) GetByLongURL(longURL string) (*models.URL, error){
+	query := `
+	  SELECT id, short_code, long_url
+	  FROM urls
+	  WHERE long_url = $1
+	`
+
+	var url models.URL
+
+	err := r.db.QueryRow(query, longURL).Scan(&url.ID, &url.ShortCode, &url.LongURL)
+
+	if err == sql.ErrNoRows{
+		return nil, fmt.Errorf("not found")
+	}
+
+	if err != nil{
+		return nil,err
+	}
+
+	return &url, nil
+}
