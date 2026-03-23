@@ -21,6 +21,18 @@ func NewURLService(repo repository.URLRepositoryInterface) *URLService {
 }
 
 func (s *URLService) CreateShortURL(longURL string) (*models.URL, error) {
+	
+	existing, err := s.repo.GetByLongURL(longURL)
+	if err != nil{
+		return nil, err
+	}
+
+	if existing != nil{
+		return existing, nil
+	}
+	
+
+	
 	// generate ID only for shortCode
 	id := atomic.AddInt64(&s.nextID, 1)
 
@@ -31,9 +43,13 @@ func (s *URLService) CreateShortURL(longURL string) (*models.URL, error) {
 		LongURL:   longURL,
 	}
 
-	err := s.repo.Save(url)
-	if err != nil {
-		return nil, err
+	err1 := s.repo.Save(url)
+	if err1 != nil {
+		existing1, err2 := s.repo.GetByLongURL(longURL)
+		if err2 != nil{
+			return nil,err1
+		}
+		return existing1, nil
 	}
 
 	return url, nil
