@@ -1,36 +1,36 @@
 package main
 
 import (
-	
 	"net/http"
 
-	"shortify/internal/handlers"
-	"shortify/internal/repository"
-	"shortify/internal/services"
-	"shortify/internal/database"
 	"shortify/internal/cache"
+	"shortify/internal/database"
+	"shortify/internal/handlers"
 	"shortify/internal/logger"
 	"shortify/internal/middleware"
+	"shortify/internal/repository"
+	"shortify/internal/services"
 )
 
-func main(){
-   
+func main() {
+
 	logger.Init()
+
 	db := database.ConnectDB()
-	cache := cache.NewRedisClient()
-	repository := repository.NewPostgresRepository(db)
-	service := services.NewURLService(repository, cache)
+	redisClient := cache.NewRedisClient() // ✅ FIXED
+
+	repo := repository.NewPostgresRepository(db)
+	service := services.NewURLService(repo, redisClient)
 	handler := handlers.NewURLHandler(service)
 
-    mux := http.NewServeMux()
-    mux.HandleFunc("/shorten", handler.CreateShortURL)
-    mux.HandleFunc("/", handler.RedirectURL)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/shorten", handler.CreateShortURL)
+	mux.HandleFunc("/", handler.RedirectURL)
 
+	loggedMux := middleware.LoggingMiddleware(mux)
+	rateLimitedMux := middleware.RateLimitMiddleware(redisClient, 10)(loggedMux)
 
-    loggedMux := middleware.LoggingMiddleware(mux)
+	logger.Log.Info("Server starting on :8080")
 
-
-    logger.Log.Info("Server starting on :8080")
-    http.ListenAndServe(":8080", loggedMux)
-
+	http.ListenAndServe(":8080", rateLimitedMux)
 }
