@@ -2,12 +2,14 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"shortify/internal/models"
-	"fmt"
+
+	"github.com/lib/pq"
 )
 
 type PostgresRepository struct {
-    db *sql.DB
+	db *sql.DB
 }
 
 func NewPostgresRepository(db *sql.DB) *PostgresRepository {
@@ -21,7 +23,22 @@ func (r *PostgresRepository) Save(url *models.URL) error {
 		RETURNING id
 	`
 
-	return r.db.QueryRow(query, url.ShortCode, url.LongURL).Scan(&url.ID)
+	err := r.db.QueryRow(query, url.ShortCode, url.LongURL).Scan(&url.ID)
+	if err == nil {
+		return nil
+	}
+
+	var postgresErr *pq.Error
+	if errors.As(err, &postgresErr) && postgresErr.Code == "23505" {
+		switch postgresErr.Constraint {
+		case "urls_short_code_key":
+			return ErrShortCodeExists
+		case "unique_long_url":
+			return ErrLongURLExists
+		}
+	}
+
+	return err
 }
 
 func (r *PostgresRepository) Get(code string) (*models.URL, error) {
@@ -35,8 +52,8 @@ func (r *PostgresRepository) Get(code string) (*models.URL, error) {
 	err := r.db.QueryRow(query, code).
 		Scan(&url.ID, &url.ShortCode, &url.LongURL)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("not found")
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -45,7 +62,7 @@ func (r *PostgresRepository) Get(code string) (*models.URL, error) {
 	return &url, nil
 }
 
-func (r *PostgresRepository) GetByLongURL(longURL string) (*models.URL, error){
+func (r *PostgresRepository) GetByLongURL(longURL string) (*models.URL, error) {
 	query := `
 	  SELECT id, short_code, long_url
 	  FROM urls
@@ -56,12 +73,12 @@ func (r *PostgresRepository) GetByLongURL(longURL string) (*models.URL, error){
 
 	err := r.db.QueryRow(query, longURL).Scan(&url.ID, &url.ShortCode, &url.LongURL)
 
-	if err == sql.ErrNoRows{
-		return nil, fmt.Errorf("not found")
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
 	}
 
-	if err != nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
 
 	return &url, nil

@@ -17,15 +17,15 @@ func main() {
 	logger.Init()
 
 	db := database.ConnectDB()
-	redisClient := cache.NewRedisClient() // ✅ FIXED
+	redisClient := cache.NewRedisClient()
 
 	repo := repository.NewPostgresRepository(db)
 	service := services.NewURLService(repo, redisClient)
 	handler := handlers.NewURLHandler(service)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/shorten", handler.CreateShortURL)
-	mux.HandleFunc("/", handler.RedirectURL)
+	mux.HandleFunc("POST /set", handler.CreateShortURL)
+	mux.HandleFunc("GET /{code}", handler.RedirectURL)
 
 	loggedMux := middleware.LoggingMiddleware(mux)
 	rateLimitedMux := middleware.RateLimitMiddleware(redisClient, 10)(loggedMux)
